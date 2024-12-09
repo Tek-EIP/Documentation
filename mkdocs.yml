@@ -1,0 +1,15 @@
+site_name: COS Documentation
+
+nav:
+  - Home: Home.md
+  - Initialisation:
+    - Sections: initialisation/initialisation.md
+    - 64Bit Mode: initialisation/32bit_launching.md
+    - IDT Setup: initialisation/idt_init.md
+    - Higher Half Setup: initialisation/higher_half_setup.md
+  - FileSystem:
+    - Sections: filesystem/filesystem.md
+  - MemoryManagement:
+    - Sections: memory/memory.md
+
+theme: readthedocs
