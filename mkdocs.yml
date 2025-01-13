@@ -3,13 +3,17 @@ site_name: COS Documentation
 nav:
   - Home: Home.md
   - Initialisation:
-    - Sections: initialisation/initialisation.md
+    - Sections: Initialisation.md
     - 64Bit Mode: initialisation/32bit_launching.md
     - IDT Setup: initialisation/idt_init.md
     - Higher Half Setup: initialisation/higher_half_setup.md
   - FileSystem:
-    - Sections: filesystem/filesystem.md
+    - Sections: Filesystem.md
+    - Low Level Read/Write Functions: filesystem/asm_functions.md
+    - Ext4 Filesystem Implementation: filesystem/ext4_setup.md
   - MemoryManagement:
-    - Sections: memory/memory.md
+    - Sections: Memory.md
+    - Physical RAM Management: memory/physical.md
+    - Virtual Space Management: memory/virtual.md
 
 theme: readthedocs

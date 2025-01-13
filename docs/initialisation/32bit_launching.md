@@ -2,21 +2,21 @@
 
 ## GDT Creation
 
-To handle memory on the system, the processor makes use of paging and segmentation as [section 3.1 of the 3rd Volume of the Intel Documentation shows]((https://cdrdv2.intel.com/v1/dl/getContent/671447)).  
+To handle memory on the system, the processor makes use of paging and segmentation as [section 3.1 of the 3rd Volume of the Intel Documentation shows](https://cdrdv2.intel.com/v1/dl/getContent/671447).  
 
 Under IA-32 and IA-32e in compatibility mode, segmentation allows the CPU to separate code, data and stack modules into memory segments (which are protected in Protected Mode).  
 In this case, the base addresses of the segments of a program may be given to the Segment Selectors of the OS while adding them to the offest in a Global Descriptor Table.
 
 If paging is enabled (necessary to enable 64bit mode) and the CPU runs in 64bit mode, most Segment Selectors are ignore and CS is then used to switch the privileged modes between Ring 0 (Kernel Mode) and Ring 3 (User Mode).  
 We won't make use of Ring 1 and Ring 2 for this project.  
-[Section 3.2.4 and 3.5.2 of the 3rd Volume of the Intel Documentation provides more insight into how it functions]((https://cdrdv2.intel.com/v1/dl/getContent/671447)).
+[Section 3.2.4 and 3.5.2 of the 3rd Volume of the Intel Documentation provides more insight into how it functions](https://cdrdv2.intel.com/v1/dl/getContent/671447).
 
 The Global Descriptor table defines the properties of the segments used by the OS.  
 By default, we must define the kernel code segment that will be loaded in the Code Segment (CS) descriptor as well as a data segment for the data segment registers.  
 In 64bit mode, the data segments are ignored except for FS and GS and most parameters which must be defined in 32bit mode are ignored because address space is considered infinite.  
 The first entry of this table is always NULL.  
 
-[Section 6.2.1 of the 3rd Volume of the Intel Documentation]((https://cdrdv2.intel.com/v1/dl/getContent/671447)) defines the following flags used by the Code Segment of a 64bit system.  
+[Section 6.2.1 of the 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) defines the following flags used by the Code Segment of a 64bit system.  
 Since we still haven't implemented the code running in the User Priviledged ring, we couldn't test the segments we have defined for the **code_user_segment**.
 
 **GDT Macros**:
@@ -103,7 +103,7 @@ As this project aims at running a 64bit compatible Operating System, we must fir
 This section is WIP as there not only one way to check for Long Mode support.
 The method we chose for this POC was to test for [CPUID support](https://wiki.osdev.org/Setting_Up_Long_Mode).
 
-[Chapter 2.3 of Volume 3A of the Intel Documentation]((https://cdrdv2.intel.com/v1/dl/getContent/671447)) shows that EFLAGS registers include bits to document CPU features.  
+[Chapter 2.3 of Volume 3A of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) shows that EFLAGS registers include bits to document CPU features.  
 If a processor supports the CPUID instruction, it is possible to leverage it to know if a processor supports long mode.  
 However, reports show that this wasn't standard on older processors.  
 As such, they may support Long Mode but have no support for the CPUID instruction.  
@@ -152,7 +152,7 @@ As it is required to switch to long mode, it is set to 1.
 Bit 31 and 1 of Control Register 0 controls the paging and protected mode features respectively.  
 While it would be unnecessary to enable Bit 1 as GRUB loaded the kernel in 32bit protected mode, we decided to do it as would like to provide support for a 32bit mode within the COS Kernel later down the line.
 
-[Section 11.4 of 3rd Volume of the Intel Documentation]((https://cdrdv2.intel.com/v1/dl/getContent/671447)) states that most IA-32 CPUs include Model Specific-Registers (MSRs).  
+[Section 11.4 of 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) states that most IA-32 CPUs include Model Specific-Registers (MSRs).  
 These are used to provide control to hardware and software features and MSR 0xC0000080 controls long mode features.  
 MSRs require usage of the RDMSR and WRMSR to ReaD and WRite values to them.
 
