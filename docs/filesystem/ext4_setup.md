@@ -1,8 +1,18 @@
 # Ext4 Setup
 
+The COS default filesystem is a basic implementation of the Ext4 FileSystem.
+A minimal implementation of an Ext4 formatter called cos_mkfs was created for this purpose.
+
+
 ## Superblock Definition
 
-## Blocks Definition
+## Block Descriptor Definition
+
+## Block Bitmap Definition
+
+## Inode Header Definition
+
+## Inode Bitmap Definition
 
 External Documentation:
 
