@@ -126,5 +126,6 @@ As the low level write function isn't yet associated to the Ext4 filesystem modu
 
 ## External Documentation
 
+* [ATAPI Specification](https://hddguru.com/documentation/2006.01.27-ATA-ATAPI-7/)
 * [ATA Mode Documentation](https://wiki.osdev.org/ATA_PIO_Mode)
 * [Status Register Bits](https://atola.com/products/tf1/manual/registers.html)
