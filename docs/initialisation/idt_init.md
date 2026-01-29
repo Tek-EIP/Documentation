@@ -52,7 +52,7 @@ The following code has been written in the file **./src/boot/main64.asm**.
 When an interruption/exception occurs, the CPU will read the IDT Table loaded in the IDT Register using the LIDT instruction.
 It will then load the address of the instruction which triggered the interruption in Control Register 2 and it will start execution of the instruction located at the address written in the IDT Table for the corresponding interrupt or exception.
 
-C code in the file **./src/kernel/idt.c** is used to give each entries an handler.  
+C code in the file **./src/kernel/idt.c** is used to associate each entry to a handler.  
 The handlers themselves are written in assembly in the file **./src/boot/idt.asm**.  
 While we tried writing C code for the handlers, the compiler adds instructions which interfere with the handlers leading to Triple Faults which force a system reset.
 

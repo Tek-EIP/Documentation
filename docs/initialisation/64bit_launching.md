@@ -17,7 +17,7 @@ In 64bit mode, the data segments are ignored except for FS and GS and most param
 The first entry of this table is always NULL.  
 
 [Section 6.2.1 of the 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) defines the following flags used by the Code Segment of a 64bit system.  
-Since we still haven't implemented the code running in the User Priviledged ring, we couldn't test the segments we have defined for the **code_user_segment**.
+A data segment and a code segment must be defined for Ring 0 (Supervisor privileges) and Ring 3 (Usermode privileges) so as to restrict access to a subset of memory pages for userland programs.
 
 **GDT Macros**:
 
@@ -34,18 +34,17 @@ Since we still haven't implemented the code running in the User Priviledged ring
 
 Under the x86_64 architecture, a 4-level paging ([5-level paging on newer processors](https://www.intel.com/content/www/us/en/content-details/671442/5-level-paging-and-5-level-ept-white-paper.html)) is supported.  
 As it is our first experience with direct communication with the memory architecture of Intel CPUs, we decided to provide support for 4-level paging first.  
-Therefore, page tables will be defined as a tree of entries.  
 
-Paging transforms a physical address in RAM into a virtual address.  
-This address is automatically decoded by the CPU thanks to its [Memory Management Unit (MMU)](https://wiki.osdev.org/Memory_Management_Unit).  
-Control of the paging mechanisms is handled by Kernel Code and not the MMU itself as its only purpose is to decode addresses read by the CPU.  
+Paging is the process by which one can associate a physical address in RAM to a virtual address.
+This virtual address is automatically decoded by the CPU thanks to its [Memory Management Unit (MMU)](https://wiki.osdev.org/Memory_Management_Unit).  
+NB: Control of paging mechanisms is handled by Kernel Code and not the MMU itself as its only purpose is to decode addresses read by the CPU.   
+To translate a physical address into a virtual address, a tree containing only arrays of 64bit pointers is created; each array being 512 entries long.  
+In 4-level paging, this tree has a depth of exactly 4.
 
-[Section 5.5 of the 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) discusses the address translation process.
-
-In 64bit mode, only the first 48bits of the Virtual Address are used and a design decision made by manufacturers makes it so that the first 16bits must all be the same as the 47th bit.  
-We won't be using the Big Pages feature which allows 1GB sized pages as the leaves of the tree.  
-As such, all the page frames used by the system will be 4kb in size and all levels of the tree will have 512 entries each.  
-In order:
+In 64bit mode, only the first 48bits of the Virtual Address are used and a design decision made by manufacturers makes it so that the last 16bits must have the value of the 47th bit.  
+We won't be using the Big Pages feature which allows 1GB sized pages as the leaves of the tree.     
+As such, every single page frames used by the system is 4kb in size.    
+The virtual address itself is built such that:
 
 * The Page Map Level 4 (PML4) entry is defined by the bits 47 through 39.
 * The Directory Pointer is defined by the bits 38 through 30.
@@ -53,23 +52,24 @@ In order:
 * The Page Table entry is defined by the bits 20 through 12.
 * The offset in the page is defined by the bits 11 through 0.
 
+[Section 5.5 of the 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) discusses the address translation process in more details.
+
 The page table defined in the .data section of the main.asm file can be explained like so.
 
 After paging is enabled, the CPU will start reading all addresses as virtual addresses.  
-Therefore, we will identity map the first 64MB of physical RAM.  
+Therefore, we've identity mapped the first 64MB of physical RAM.  
 The process of identity mapping means that a Physical Address is equal to its Virtual Address.  
 For example, Physical Address 0x0 being encoded as Virtual Address 0x0.
 
-The label named **page_table_level_4** will represent a pointer after compilation.
-As it is an array of 512 entries of 64bit values, we map entry 0 to the pointer of the Directory Pointer named **page_table_level_3**.  
+The label named **page_table_level_4** represent a pointer after compilation.
+As the root node of the page table tree is an array of 512 entries of 64bit values, we map entry 0 to the pointer of the Directory Pointer named **page_table_level_3**.  
 We then do the same with the Directory Pointer entry and the Directory entry.  
 
-Finally, we map all 512 entries of the Page Table with base addresses 0 through 511.
-Testing to assign more memory to the OS for the Memory Manager shows that we only need to use indexes instead of an address to index 4kb blocs.  
-As such, only using 0 through 511 will automatically be detected as base addresses of 4kb blocs.  
-These values are moved 12 bits to the right because the format loads the base address starting from bit 12.  
+Once the tree is complete, all 512 entries of the Page Table (the root node) will be mapped to the first few valid virtual kernel addresses starting from the kernel higher half base address (more on that later).
+To map a physical address, one must use address starting a 4kb block (base address) of physical RAM.    
+For example, if one wishes to map address range 0x1643 - 0x2456, then one has to map address 0x1000 and 0x2000 to virtual addresses for this range to become accessible. 
 
-All of the entries are loaded with 0b11 because Bit 0 and 1 are parameters of the page needed for proper kernel operations.  
+Every entry in main.asm are loaded with 0b11 because Bit 0 and 1 are parameters of the page needed for proper kernel operations.  
 Bit 0 is the Present bit which allow mapping of a 4kb bloc and Bit 1 enables Read/Write permissions to the page.
 
 NB: Read section Higher Half Setup to understand why the final entry of the Kernel Page Table has been duplicated.
@@ -100,7 +100,7 @@ If it was, the value *0x2BADB002* is stored in the eax register.
 
 As this project aims at running a 64bit compatible Operating System, we must first enable Long Mode (called IA-32e by Intel) support as [Section 11.8.5 of the 3rd Volume of the Intel Documentation shows](https://cdrdv2.intel.com/v1/dl/getContent/671447).
 
-This section is WIP as there not only one way to check for Long Mode support.
+This section is WIP as there not only one way to check for Long Mode support.   
 The method we chose for this POC was to test for [CPUID support](https://wiki.osdev.org/Setting_Up_Long_Mode).
 
 [Chapter 2.3 of Volume 3A of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) shows that EFLAGS registers include bits to document CPU features.  
@@ -150,13 +150,14 @@ However, their virtual address space remains bound to a 4GB RAM limit.
 As it is required to switch to long mode, it is set to 1.  
 
 Bit 31 and 1 of Control Register 0 controls the paging and protected mode features respectively.  
-While it would be unnecessary to enable Bit 1 as GRUB loaded the kernel in 32bit protected mode, we decided to do it as would like to provide support for a 32bit mode within the COS Kernel later down the line.
+N.B: While it is unnecessary to enable Bit 1 as GRUB loaded the kernel in 32bit protected mode, it still remains just to be sure.
 
 [Section 11.4 of 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) states that most IA-32 CPUs include Model Specific-Registers (MSRs).  
 These are used to provide control to hardware and software features and MSR 0xC0000080 controls long mode features.  
 MSRs require usage of the RDMSR and WRMSR to ReaD and WRite values to them.
 
-Finally, we must include a pointer to a paging structure in Control Register 3 to complete Paging initialisation. 
+Finally, we must include a pointer to a paging structure in Control Register 3 to complete Paging initialisation.   
+The one pointing to the root node of the paging tree defined in Kernel Page Table Definition is such a pointer.
 
 ### enable_paging function
 
@@ -184,18 +185,24 @@ Finally, we must include a pointer to a paging structure in Control Register 3 t
 
 ## Switch to 64bit mode
 
-Once all prior routines are run, the GDT can be loaded into the GDT register with the LGDT instruction.
+Once all prior routines are run, the GDT can be loaded into the GDT register with the LGDT instruction.     
+64bit mode is then triggered after CS is reloaded.
 
-In Protected Mode, the Code Segment is loaded with the code to be executed.
-Even though the base address is always 0 for all Segment Selector once the CPU was switched into long mode, the Code Selector must be loaded with the proper value to finalise the switch to 64bit mode.  
+Register CS (Code Selector) is an index into the GDT multiplied by 8 meaning that if the segment one wishes to select is the first entry of the GDT, then CS == 8 (entry 1 * 8).
+However, this value cannot be changed with an instruction like mov.     
+Instead, the documentation states that Type Checking must be performed on the segment by the CPU to change its value.   
+N.B: In this case, Type Checking means the CPU will verify that the Selector registers are loaded with a segment of the correct type.   
+For example, the CS register can only point to a GDT segment defined as a code segment.
 
 [Section 6.4 of the 3rd Volume of the Intel Documentation](https://cdrdv2.intel.com/v1/dl/getContent/671447) states that Type Checking will be performed whenever a far call is made, a far jump is made or an interruption occurs.
-
-At the beginning of the initialisation routine, we executed the CLI instruction which deactivated hardware interrupts.  
-It was needed because the Code Selector could have changed before the initialisation was finished.  
 
 A far jump may now be performed to switch to 64bit mode with the following instruction.
 
     jmp gdt64.code_segment:long_mode_start - VIRT_ADDR
+
+This argument is read an address in segment:offset form.   
+In protected mode, a jump an address written in segment:offset form will:
+* Load the segment part into the CS register.
+* Load the offset part into the RIP register.
 
 NB: Read the Higher Half Setup section to understand why VIRT_ADDR is added to this instruction.

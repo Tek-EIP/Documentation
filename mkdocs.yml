@@ -4,7 +4,7 @@ nav:
   - Home: Home.md
   - Initialisation:
     - Sections: Initialisation.md
-    - 64Bit Mode: initialisation/32bit_launching.md
+    - 64Bit Mode: initialisation/64bit_launching.md
     - IDT Setup: initialisation/idt_init.md
     - Higher Half Setup: initialisation/higher_half_setup.md
   - FileSystem:

@@ -16,7 +16,8 @@ If an entry is empty, a reserved block is claimed and linked into the page table
 - Level 2 (PD): Same treatment as above.
 - Level 1 (PT): If an entry is available (not marked as present), the desired physical address is mapped with read/write and present flags.
 
-Each time a new level of the page table hierarchy is created (i.e., the next level does not exist), the kernel uses one of its reserved blocks and zeroes it to serve as the new page table.
+Each time a new level of the page table hierarchy is created (i.e., the next level does not exist), the kernel uses one of its free blocks and zeroes it to serve as the new page frame.    
+Blocks that are part of the kernel page tree shall never be deallocated and are considered reserved by the system. 
 
 ## Virtual Address Computation
 
@@ -33,11 +34,6 @@ virt_addr =
 
 This ensures that the returned virtual address always falls within the higher-half space and that no lower-half mappings are ever created.
 
-## Reserved Block Recycling
-
-Every time a reserved block is used to expand a page table level, it is also linked into the allocated_page_frames list.
-This ensures that it is tracked properly and not inadvertently lost from internal management.
-
 ## Failure and Limits
 
 If no virtual address slot is available across the entire 512GB kernel virtual space, the function prints a warning and returns -1.\
@@ -45,53 +41,13 @@ This case should be unreachable under realistic conditions unless:
 - The entire higher-half space is exhausted.
 - Unmapping is never performed.
 
-**Implementation Notes:**\
-
-TODOs in the code correctly identify future improvements:
-
-- Recursion in allocate_memory_blocs should be removed or replaced with a more predictable allocation scheme.
-- Reserved blocks are currently identity-mapped, which may not align with future kernel address space restrictions.
-- kernel_map must be audited for use outside initialisation, as it assumes all parent table levels remain present.
-
-This function is critical for enabling dynamic mapping during runtime and supports the kernel’s ability to manipulate memory structures post-boot safely.
-
-
 ## Page Frame Claiming and Allocation
 
 The COS kernel handles physical memory in fixed-size 4KB blocks, known as page frames.\
 All memory allocations, reservations, and mappings are done on these page-sized units.\
 
-Two key functions manage this page-based allocation logic:
-- claim_free_page_frames(...) – responsible for finding and preparing free memory blocks.
-- allocate_memory_blocs(...) – consumes those free blocks and moves them into the allocated list.
-
-#### claim_free_page_frames
-
-This function is the backbone of dynamic memory discovery in COS.\
-It searches through memory regions defined at initialization (entries_addr[] and entries_len[]) and builds a linked list of available page frame structures.
-
-The function allocates page frame structures (page_frame_entry_t) inside the very blocks they describe.\
-To avoid circular dependencies (e.g., trying to allocate a structure on itself), the function performs mapping and tracking in a very specific order.
-
-Before any pointer is dereferenced or memory is written, the physical address is passed to kernel_map to ensure it is virtually mapped in the kernel address space.
-Memory regions are aligned and sized in multiples of 0x1000 (4KB), ensuring compatibility with hardware page tables.
-
-***Control Flow Highlights***
-
-The function loops through available memory regions, tracking:
-
-- Which region (entry_addr_index) is currently being carved.
-- The current offset (offset) into the region.
-
-Whenever it needs to insert a new metadata structure (page_frame_entry_t) in a new page frame used by the page frames list, it:
-- Calls kernel_map to map the physical address into the kernel's virtual space.
-- Initializes and links the new structure to the allocated_page_frames list.
-- Adds subsequent entries to the available_page_frames list.
-- Calls check_reserved_blocks_status(...) every time a new structure page is created to ensure reserved blocks are not exhausted, as these are needed for further virtual memory expansion.
-
-
-If at any point mapping fails or no more free pages are found, the function prints a warning and aborts.\
-It also updates global counters like number_of_allocated_page_frames and number_of_available_page_frames for accurate memory accounting.
+One key functions manage this page-based allocation logic:
+- allocate_memory_blocs(...) – consumes those free blocks and moves them into the allocated list unless it is a reserved block.
 
 #### allocate_memory_blocks
 
@@ -103,20 +59,12 @@ Return a pointer to the head of a contiguous sublist representing those blocks.
 
 ***Control Flow Highlights***
 
-- If insufficient free blocks exist, calls claim_free_page_frames(...) to replenish.
 - Walks forward in the available_page_frames list to isolate a sublist of the requested size.
 - Moves this sublist from available_page_frames into allocated_page_frames.
 - Ensures all list pointers (next_frame, prev_frame) are updated correctly.
 - Returns a pointer to the start of the newly allocated block chain.
 
 If allocation fails at any point (e.g., out of memory), returns NULL.
-
-Notes:\
-This mechanism is flawed.\
-Once a proper virtual address manager will be made (alongside a scheduler to introduce the concept of processes), allocated blocks will be remembered by any process,  including the kernel which will be considred a process itself.\
-Thus, reserved blocks will no longer need to be extracted from this list.
-
-
 
 ## Kernel Virtual Memory Allocation and Page Table Construction
 
@@ -150,8 +98,7 @@ The **kernel_make_process_page_table** function is responsible for allocating an
 
 It performs the following steps:
 - Allocates a new PML4 (Page Map Level 4) table.
-- Copies the kernel-space mapping (index 511) from the master kernel PML4 to the new table, allowing kernel code to remain accessible from all processes.\
-**WARNING:** Currently, every process is ran in Ring 0.
+- Copies the kernel-space mapping (index 511) from the master kernel PML4 to the new table, allowing kernel code to remain accessible from all processes.
 - Adds a recursive page table mapping at index 510 to enable runtime access to the process's own page tables via a known address.
 - For the specified number of blocks (bin_size), calls cos_mmap to allocate and map the physical pages consecutively into virtual space.
 - Stores the address of the final mapped page in final_bin_virt_addr to be used as the process entry point or heap start.
@@ -200,7 +147,7 @@ At each level, the relevant page table entry is checked for validity by masking 
 If any entry in the hierarchy is invalid or absent (zero base address), the function returns (uint64_t)-1 indicating that the virtual address is unmapped.\
 Otherwise, the physical page base address from the lowest-level page table entry is combined with the page offset (bits 11–0) to produce the final physical address.
 
-**WARNING:** It does not handle large pages (2MB or 1GB) or page faults; only 4KB page mappings.
+**WARNING:** It does not handle large pages (2MB or 1GB); only 4KB page mappings.
 
 
 ### Recursive Page Table Trick Explained
@@ -261,5 +208,7 @@ Entries 510 and 511 are specially set:
 The RECURSIVE_BIT_EXPANSION expands the upper 16 bits to 0xFFFF (sign extension for canonical 64-bit addresses on x86_64).\
 This ensures addresses are valid canonical user or kernel addresses.\
 These macros construct virtual addresses that directly index into each level’s table entry via recursive mapping.\
-The RECURSIVE_PAGE_TABLE_ENTRY (510) is inserted into higher level indices where appropriate to maintain the self-reference chain.
+The RECURSIVE_PAGE_TABLE_ENTRY (510) is inserted into higher level indices where appropriate to maintain the self-reference chain.  
 The lowest 12 bits (<< 12) correspond to the page offset.
+
+#### Malloc and Free
