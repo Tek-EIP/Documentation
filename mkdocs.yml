@@ -2,18 +2,30 @@ site_name: COS Documentation
 
 nav:
   - Home: Home.md
+  - Timeline: Timeline.md
+  - Test Framework: UnitTests.md
   - Initialisation:
-    - Sections: Initialisation.md
+    - Sections: Kernel.md
     - 64Bit Mode: initialisation/64bit_launching.md
     - IDT Setup: initialisation/idt_init.md
     - Higher Half Setup: initialisation/higher_half_setup.md
+  - Kernel:
+    - RTC: initialisation/rtc.md
+    - Other Functionalities: initialisation/other_functionalities.md
+    - Bare-Metal Support: kernel/pci.md
+    - Prompt: kernel/prompt.md
+    - FileSystem Commands: FilesystemCommands.md
   - FileSystem:
     - Sections: Filesystem.md
     - Low Level Read/Write Functions: filesystem/asm_functions.md
     - Ext4 Filesystem Implementation: filesystem/ext4_setup.md
+    - Inode Metadata Handling: filesystem/inode_metadata.md
   - MemoryManagement:
     - Sections: Memory.md
     - Physical RAM Management: memory/physical.md
     - Virtual Space Management: memory/virtual.md
+    - Scheduling: memory/scheduling.md
+    - WinPE Loading: memory/BinaryParsing.md
+    - Linux Loading: memory/Linux_parser.md
 
 theme: readthedocs

@@ -17,17 +17,17 @@ This document details the timeline of the project including the several hurdles 
 * [EXT4 FileSystem Formatter and Mounting](./filesystem/ext4_setup.md)
 * [Terminal Commands to interact with the EXT4 FileSystem]()
 * [Framebuffer Prompt](./kernel/prompt.md)
-* Pure ASM binary launching (Test of the Memory Mapper)
+* Pure ASM binary launching (Test of the Memory Mapper and replaced by real formats)
 * [Bare-Metal Support WIP (PCI Parsing and MBR/GPT Parsing)](./kernel/pci.md)
-* [WinPE Parser]()
-* [WinPE Loading]()
-* [ELF Parser]()
-* [ELF Loading]()
-* [PoC Scheduling]()
+* [WinPE Parser](./memory/BinaryParsing.md)
+* [WinPE Loading](./memory/Linux_parser.md)
+* [ELF Parser](./memory/Linux_parser.md)
+* [ELF Loading](./memory/Linux_parser.md)
+* [PoC Scheduling](./memory/scheduling.md)
 
 ### WIP Features
 
-As these aren't relevant to the project and somewhat unfinished anyway, they aren't documented in the current documentation's state:
+The following WIP features may have uncompleted documentation.
 * Graphics Support
 * ACPI Tables Parsing
-* File Descriptor Functionality
+* [File Descriptor Functionality](FilesystemCommands.md)
