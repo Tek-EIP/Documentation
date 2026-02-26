@@ -27,6 +27,15 @@ jobs:
                     token: ${{ secrets.PUBLIC_TOKEN }}
                     persist-credentials: true
 
+            -   name: Checkout Destination
+                uses: actions/checkout@v3
+                with:
+                    path: 'dest_wiki'
+                    ref: 'main'
+                    repository: 'Tech-COS/Documentation.wiki'
+                    token: ${{ secrets.PUBLIC_TOKEN }}
+                    persist-credentials: true
+
 
             -   name: Configure Git for GitHub Actions
                 run: |
@@ -37,6 +46,17 @@ jobs:
                 run: |
                     rm -Rf ./src/.git/
                     cd dest
+                    cp -rf ../src/* .
+                    cp -rf ../src/.* .
+                    git checkout --orphan erased_history
+                    git add -A
+                    git rm -f .github/workflows/push_to_public_repo.yml
+                    git diff --quiet && git diff --staged --quiet || git commit -m "Publishing codebase."
+                    git branch -D main
+                    git branch -m main
+                    git push --force origin main
+                    cd ..
+                    cd dest_wiki
                     cp -rf ../src/* .
                     cp -rf ../src/.* .
                     git checkout --orphan erased_history
