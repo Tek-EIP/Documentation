@@ -1,0 +1,48 @@
+name: Sync dev to main on public repo
+
+on:
+    push:
+        branches: ["dev"]
+    pull_request:
+        types: [closed]
+        branches: ["dev"]
+jobs:
+    sync:
+        if: github.repository != 'Tech-COS/Documentation'
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout Source
+                uses: actions/checkout@v3
+                with:
+                    path: 'src'
+                    ref: 'dev'
+                    persist-credentials: false
+
+            -   name: Checkout Destination
+                uses: actions/checkout@v3
+                with:
+                    path: 'dest'
+                    ref: 'main'
+                    repository: 'Tech-COS/Documentation'
+                    token: ${{ secrets.PUBLIC_TOKEN }}
+                    persist-credentials: true
+
+
+            -   name: Configure Git for GitHub Actions
+                run: |
+                    git config --global user.name "github-actions[bot]"
+                    git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            
+            -   name: Publish the codebase.
+                run: |
+                    rm -Rf ./src/.git/
+                    cd dest
+                    cp -rf ../src/* .
+                    cp -rf ../src/.* .
+                    git checkout --orphan erased_history
+                    git add -A
+                    git rm -f .github/workflows/push_to_public_repo.yml
+                    git diff --quiet && git diff --staged --quiet || git commit -m "Publishing codebase."
+                    git branch -D main
+                    git branch -m main
+                    git push --force origin main
