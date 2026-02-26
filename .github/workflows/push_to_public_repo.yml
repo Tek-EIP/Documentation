@@ -61,7 +61,6 @@ jobs:
                     cp -rf ../src/.* .
                     git checkout --orphan erased_history
                     git add -A
-                    git rm -f .github/workflows/push_to_public_repo.yml
                     git diff --quiet && git diff --staged --quiet || git commit -m "Publishing codebase."
                     git branch -D main
                     git branch -m main
